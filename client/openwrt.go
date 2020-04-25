@@ -44,6 +44,21 @@ type LuciRPCComplexResponse struct {
 	Error  string                  `json:"error,omitempty"`
 }
 
+//LuciFirewallRuleResult is a cut down model for firewall rule activation
+type LuciFirewallRuleResult struct {
+	DotName string `json:".name"`
+	Name    string `json:"name,omitempty"`
+	Enabled string `json:"enabled,omitempty"`
+}
+
+//LuciRPCFirewallGetAllResponse allows deserialization of the result body to a valid struct
+// where we expect a list of named rules
+type LuciRPCFirewallGetAllResponse struct {
+	ID     int                                `json:"id,omitempty"`
+	Result *map[string]LuciFirewallRuleResult `json:"result"`
+	Error  string                             `json:"error,omitempty"`
+}
+
 //Client remembers the client connection and auth
 type Client struct {
 	cfgFileName string
@@ -91,6 +106,7 @@ func NewClient(cfn string) (*Client, error) {
 
 // doPost is a sink to capture http.Client creation on posts
 func doPost(URL string, body []byte) (*http.Response, error) {
+	log.Printf("URL:\n%s\nBody\n%s\n", URL, string(body))
 
 	// workaround: accept self-signed TLS
 	tr := &http.Transport{
@@ -136,8 +152,186 @@ func (c *Client) Auth() error {
 		log.Printf("Auth failed;%#v got %v", a, string(responseBody))
 		return fmt.Errorf("Failed to get auth token")
 	}
-	log.Println("Client token obtained\n")
+	log.Println("Client token obtained")
 	c.AuthToken = result.Result
 
+	return nil
+}
+func assertString(i interface{}) string {
+	s, ok := i.(string)
+	if ok {
+		return s
+	}
+	return ""
+}
+
+//GetFirewallRules gets traffic rules from the router firewall
+// NOTE in the return map, label names are used as the index but dotnames are the index in the payload
+func (c *Client) GetFirewallRules() (map[string]LuciFirewallRuleResult, error) {
+	request := LuciRPCMethodRequest{
+		Method: "get_all",
+		Params: []string{"firewall"},
+	}
+	body, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("Error marshalling rule request:%v", err)
+	}
+	URL := c.BaseURL + "/uci?auth=" + c.AuthToken
+	// get answer
+	response, err := doPost(URL, body)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to contact Router:%v", err)
+	}
+	defer response.Body.Close()
+
+	// find token
+	responseBody, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to read router rules response:%v", err)
+	}
+	// fmt.Printf("body;\n%v", string(responseBody))
+	// result := LuciRPCComplexResponse{} //map[string]interface{}
+	// err = json.Unmarshal(responseBody, &result)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Failed to parse router rules response:%v", err)
+	// }
+	// rules := make(map[string]LuciFirewallRuleResult)
+	// for name, val := range *result.Result {
+	// 	v, ok := val.(map[string]interface{})
+	// 	if ok {
+	// 		r := LuciFirewallRuleResult{}
+	// 		r.DotName = assertString(v[".name"])
+	// 		r.Name = assertString(v["name"])
+	// 		r.Enabled = assertString(v["enabled"])
+	// 		//log.Printf("Rule %s:\n%#v\n", name, r)
+	// 		rules[r.Name] = r
+	// 	} else {
+	// 		log.Printf("Error: Rule %s:%#v\n", name, val)
+	// 	}
+	// }
+	fwResponse := &LuciRPCFirewallGetAllResponse{}
+	err = json.Unmarshal(responseBody, &fwResponse)
+	//var rules map[string]LuciFirewallRuleResult
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse router rules response:%v", err)
+	}
+	rules := make(map[string]LuciFirewallRuleResult)
+	// noname rule fixup - use label names as index
+	for name, val := range *fwResponse.Result {
+		if len(val.Name) == 0 {
+			val.Name = name
+		}
+		rules[val.Name] = val
+	}
+
+	return rules, nil
+
+}
+
+// EnableFirewallRule uses tje donamme
+func (c *Client) EnableFirewallRule(dotname string) error {
+	request := LuciRPCMethodRequest{
+		Method: "set",
+		Params: []string{"firewall", dotname, "enabled", ""},
+	}
+	body, err := json.Marshal(request)
+	if err != nil {
+		return fmt.Errorf("Error marshalling rule request:%v", err)
+	}
+	URL := c.BaseURL + "/uci?auth=" + c.AuthToken
+	// get answer
+	response, err := doPost(URL, body)
+	if err != nil {
+		return fmt.Errorf("Failed to contact Router:%v", err)
+	}
+	defer response.Body.Close()
+
+	// find token
+	responseBody, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return fmt.Errorf("Failed to read router rules response:%v", err)
+	}
+	fmt.Printf("body;\n%v", string(responseBody))
+	result := LuciRPCBoolResponse{} //map[string]interface{}
+	err = json.Unmarshal(responseBody, &result)
+	if err != nil {
+		return fmt.Errorf("Failed to parse router rules response:%v", err)
+	}
+	if result.Result == false {
+		return fmt.Errorf("Set rule failed:%v", result.Error)
+
+	}
+
+	return c.doCommitFirewall()
+}
+
+// DisableFirewallRule uses tje donamme
+func (c *Client) DisableFirewallRule(dotname string) error {
+	request := LuciRPCMethodRequest{
+		Method: "set",
+		Params: []string{"firewall", dotname, "enabled", "0"},
+	}
+	body, err := json.Marshal(request)
+	if err != nil {
+		return fmt.Errorf("Error marshalling rule request:%v", err)
+	}
+	URL := c.BaseURL + "/uci?auth=" + c.AuthToken
+	// get answer
+	response, err := doPost(URL, body)
+	if err != nil {
+		return fmt.Errorf("Failed to contact Router:%v", err)
+	}
+	defer response.Body.Close()
+
+	// find token
+	responseBody, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return fmt.Errorf("Failed to read router rules response:%v", err)
+	}
+	fmt.Printf("body;\n%v", string(responseBody))
+	result := LuciRPCBoolResponse{} //map[string]interface{}
+	err = json.Unmarshal(responseBody, &result)
+	if err != nil {
+		return fmt.Errorf("Failed to parse router rules response:%v", err)
+	}
+	if result.Result == false {
+		return fmt.Errorf("Set rule failed:%v", result.Error)
+
+	}
+
+	return c.doCommitFirewall()
+}
+
+func (c *Client) doCommitFirewall() error {
+	request := LuciRPCMethodRequest{
+		Method: "commit",
+		Params: []string{"firewall"},
+	}
+	body, err := json.Marshal(request)
+	if err != nil {
+		return fmt.Errorf("Error marshalling commit request:%v", err)
+	}
+	URL := c.BaseURL + "/uci?auth=" + c.AuthToken
+	// get answer
+	response, err := doPost(URL, body)
+	if err != nil {
+		return fmt.Errorf("Failed to contact Router:%v", err)
+	}
+	defer response.Body.Close()
+
+	// find token
+	responseBody, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return fmt.Errorf("Failed to read router commmit response:%v", err)
+	}
+	fmt.Printf("body;\n%v", string(responseBody))
+	result := LuciRPCBoolResponse{} //map[string]interface{}
+	err = json.Unmarshal(responseBody, &result)
+	if err != nil {
+		return fmt.Errorf("Failed to parse router commit response:%v", err)
+	}
+	if result.Result == false {
+		return fmt.Errorf("Commit rule failed:%v", result.Error)
+	}
 	return nil
 }

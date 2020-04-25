@@ -17,4 +17,22 @@ func main() {
 	if err != nil {
 		log.Fatalf("Client Auth() failed:%v\n", err)
 	}
+	rules, err := routerClient.GetFirewallRules()
+	if err != nil {
+		log.Printf("Traffic Rule Get failed:%v\n", err)
+	}
+	//	log.Printf("%#v]n", rules)
+	err = routerClient.EnableFirewallRule(rules["ferdinand"].DotName)
+	if err != nil {
+		log.Printf("Traffic Rule Enable failed:%v\n", err)
+	}
+	err = routerClient.EnableFirewallRule(rules["ferdinand"].DotName)
+	if err != nil {
+		log.Printf("Traffic Rule Enable failed:%v\n", err)
+	}
+	err = routerClient.DisableFirewallRule(rules["ferdinand"].DotName)
+	if err != nil {
+		log.Printf("Traffic Rule Enable failed:%v\n", err)
+	}
+
 }
