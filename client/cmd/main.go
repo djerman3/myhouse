@@ -1,11 +1,20 @@
 package main
 
-import "github.com/djerman3/homecontrol/client"
+import (
+	"log"
 
-var cfgFilePath := "/home/djerman/projects/homecontrol/etc/homecontrol.json"
+	"github.com/djerman3/homecontrol/client"
+)
+
+var cfgFilePath = "/home/djerman/projects/homecontrol/etc/homecontrol.json"
+
 func main() {
-	router_client,err := client.NewClient(cfgFilePath)
-	if err != nil{
-		log.Fatalf("Bad client:%v\n",err)
+	routerClient, err := client.NewClient(cfgFilePath)
+	if err != nil {
+		log.Fatalf("Bad client:%v\n", err)
+	}
+	err = routerClient.Auth()
+	if err != nil {
+		log.Fatalf("Client Auth() failed:%v\n", err)
 	}
 }
