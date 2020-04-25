@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -123,16 +124,19 @@ func (c *Client) Auth() error {
 	if err != nil {
 		return fmt.Errorf("Failed to read router Auth response:%v", err)
 	}
-	fmt.Printf("body;\n%v", string(responseBody))
+	// fmt.Printf("body;\n%v", string(responseBody))
 	result := LuciRPCSingleResponse{} //map[string]interface{}
 	err = json.Unmarshal(responseBody, &result)
 	if err != nil {
 		return fmt.Errorf("Failed to parse router Auth response:%v", err)
 	}
 	if len(result.Result) < 4 || len(result.Error) != 0 {
+		a := c.AuthRequest
+		a.Params[1] = ""
+		log.Printf("Auth failed;%#v got %v", a, string(responseBody))
 		return fmt.Errorf("Failed to get auth token")
 	}
-	fmt.Printf("CLient token obtained\n")
+	log.Println("Client token obtained\n")
 	c.AuthToken = result.Result
 
 	return nil
