@@ -1,5 +1,5 @@
 //Package control defines the control server that  runs household uitlites
-package control
+package homecontrol
 
 import (
 	"encoding/json"
