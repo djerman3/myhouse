@@ -3,10 +3,10 @@ package main
 import (
 	"log"
 
-	"github.com/djerman3/homecontrol/client"
+	"github.com/djerman3/myhouse/client"
 )
 
-var cfgFilePath = "/home/djerman/projects/homecontrol/etc/homecontrol.json"
+var cfgFilePath = "/home/djerman/projects/myhouse/etc/myhouse.json"
 
 func main() {
 	routerClient, err := client.NewClient(cfgFilePath)

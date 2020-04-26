@@ -1,5 +1,5 @@
-//Package control defines the control server that  runs household uitlites
-package homecontrol
+//Package server defines the web server that  runs household uitlites
+package server
 
 import (
 	"encoding/json"

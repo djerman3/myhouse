@@ -3,14 +3,12 @@ package main
 
 import (
 	"log"
-
-	"github.com/djerman3/homecontrol"
 )
 
 func main() {
-	cfgFileName := "/home/djerman/projects/homecontrol/etc/homecontrol.json"
+	cfgFileName := "/home/djerman/projects/myhouse/etc/myhouse.json"
 
-	s, err := homecontrol.NewServer(cfgFileName)
+	s, err := myhouse.NewServer()
 	if err != nil {
 		log.Fatalln(err)
 	}
