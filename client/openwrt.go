@@ -75,7 +75,7 @@ func NewClient(cfn string) (*Client, error) {
 		//quietly try a fallback:
 		//TODO: signal this with an error type for realerr
 		realerr := err
-		cfgFileName := "/etc/homecontrol/homecontrol.json"
+		cfgFileName := "/etc/myhouse.json"
 		cfgFile, err = os.Open(cfgFileName)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to open client config:%v", realerr)
