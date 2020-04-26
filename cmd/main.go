@@ -3,14 +3,17 @@ package main
 
 import (
 	"log"
-	"os"
+	"net/http"
+
+	control "github.com/djerman3/homecontrol"
 )
 
 func main() {
-	cfgFileName := "~djerman/projects/control/etc/homecontrol/homecontrol.cfg"
-	cfgFile, err := os.Open(cfgFileName)
+	cfgFileName := "/home/djerman/projects/homecontrol/etc/homecontrol.json"
+
+	s, err := control.NewHomeServer(cfgFileName)
 	if err != nil {
-		log.Printf("Opening Config File: %v")
+		log.Fatalln(err)
 	}
-	s := control.NewServer(cfgFile)
+	log.Fatalln(http.ListenAndServe(s.ListenAddress, s))
 }
