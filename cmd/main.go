@@ -3,7 +3,6 @@ package main
 
 import (
 	"log"
-	"net/http"
 
 	control "github.com/djerman3/homecontrol"
 )
@@ -11,9 +10,9 @@ import (
 func main() {
 	cfgFileName := "/home/djerman/projects/homecontrol/etc/homecontrol.json"
 
-	s, err := control.NewHomeServer(cfgFileName)
+	s, err := control.NewServer(cfgFileName)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	log.Fatalln(http.ListenAndServe(s.ListenAddress, s))
+	log.Fatalln(s.ListenAndServe())
 }
