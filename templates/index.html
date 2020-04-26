@@ -1,45 +1,72 @@
 <!DOCTYPE html>
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link
-    rel="stylesheet"
-    href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css"
-  />
+  <link rel="stylesheet" href="static/css/bootstrap.min.css" />
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
-  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
-  <meta http-equiv="refresh" content="6" />
+  <meta http-equiv="refresh" content="46" />
   <title>Get Control!</title>
 </head>
+
 <body>
-  <div class="jumbotron text-center">
-    <h1>Firewall</h1>
-    <p>At {{time}}</p>
-    
-  </div>
-    <div class="container">
-		<div class="row-6white!curunir23
-		">
-			<div class="col-4">
-          <button
-            class="btn btn-primary btn-lg btn-block"
-            type="submit"
-            formaction="/"
-            autofocus="autofocus"
-          >
-            Block
+  <div class="container-fluid">
+    <div class="jumbotron text-center">
+      <h1>Firewall</h1>
+      <p>At {{time}}</p>
+    </div>
+    <div class="row">
+      <div class="col-1">&nbsp;</div>
+      
+      <div class="col-4">
+        <div class="row">
+          <button type="button" class="btn btn-primary btn-block">
+            Savannah Lock
           </button>
         </div>
-        <div class="col-6">
-          <button
-            class="btn btn-secondary btn-lg btn-block"
-            type="reset"
-            formaction="/"
-          >
-            RELOAD
+        <div class="row">
+          <button type="button" class="btn btn-success btn-block">
+            Laptop
+          </button>
+        </div>
+        <div class="row">
+          <button type="button" class="btn btn-danger btn-block">
+            Ipad
+          </button>
+        </div>
+        <div class="row">
+          <button type="button" class="btn btn-secondary btn-block">
+            Savannah Unlock
           </button>
         </div>
       </div>
+      <div class="col-1">&nbsp;</div>
+      <div class="col-4">
+        <div class="row">
+          <button type="button" class="btn btn-primary btn-block">
+            Charlie Lock
+          </button>
+        </div>
+        <div class="row">
+          <button type="button" class="btn btn-success btn-block">
+            Laptop
+          </button>
+        </div>
+        <div class="row">
+          <button type="button" class="btn btn-danger btn-block">
+            Ipad
+          </button>
+        </div>
+        <div class="row">
+          <button type="button" class="btn btn-secondary btn-block">
+            Charlie Unlock
+          </button>
+        </div>
+      </div>
+      <div class="col-1">&nbsp;</div>
+      
     </div>
-  
+  </div>
+
+  <script src="static/js/bootstrap.min.js"></script>
 </body>
