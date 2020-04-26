@@ -4,6 +4,7 @@ package main
 import (
 	"log"
 	"os"
+	"net/http"
 )
 
 func main() {
@@ -12,5 +13,5 @@ func main() {
 	if err != nil {
 		log.Printf("Opening Config File: %v")
 	}
-	s := control.NewServer(cfgFile)
+	s := control.NewServer(cfgFile) 
 }
