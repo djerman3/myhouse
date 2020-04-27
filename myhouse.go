@@ -24,7 +24,7 @@ type myhouseConfig struct {
 	} `json:"server`
 }
 
-func NewServer(cfgFileName string) (*server.Server, err) {
+func NewServer(cfgFileName string) (*myhouse.Server, error) {
 	cfgFile, err := os.Open(cfgFileName)
 	if err != nil {
 		return nil, fmt.Errorf("Can't open config file %s:%v", cfgFileName, err)
@@ -39,5 +39,6 @@ func NewServer(cfgFileName string) (*server.Server, err) {
 	if err != nil {
 		return nil, fmt.Errorf("Server Init: %v", err)
 	}
-	return server.NewServer(cfgFileName)
+	s := myhouse.Server{ListenAddress: result.Server.ListenAddress, cfg: &result}
+	return &s, nil
 }

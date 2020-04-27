@@ -8,11 +8,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// Server provides the http handler for the webserver which routes and muxes
-type Server struct {
-	ListenAddress string
-}
-
 func assertString(i interface{}) string {
 	s, ok := i.(string)
 	if ok {
@@ -21,18 +16,16 @@ func assertString(i interface{}) string {
 	return ""
 }
 
-//NewServer inits the server from the default config or the passed-in Reader
-func NewServer(addr string) (*Server, error) {
-	s := Server{ListenAddress: addr}
-	return &s, nil
+// Server provides the http handler for the webserver which routes and muxes
+type Server struct {
+	ListenAddress string
+	cfg           *myhouseConfig
 }
 
+// ListenAndServe returns  when the server errors-out but blocks while the server runs
 func (s *Server) ListenAndServe() error {
 	r := mux.NewRouter()
-	r.HandleFunc("/", Hello)
-	http.Handle("/", r)
 	fmt.Printf("Starting up on %s]n", s.ListenAddress)
-
 	return http.ListenAndServe(s.ListenAddress, r)
 }
 
