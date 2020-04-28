@@ -1,5 +1,5 @@
 // Package client sends commands to an openwrt router for uci managment of router stuff
-package client
+package myhouse
 
 import (
 	"bytes"
@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"time"
 )
 
@@ -44,13 +43,6 @@ type LuciRPCComplexResponse struct {
 	Error  string                  `json:"error,omitempty"`
 }
 
-//LuciFirewallRuleResult is a cut down model for firewall rule activation
-type LuciFirewallRuleResult struct {
-	DotName string `json:".name"`
-	Name    string `json:"name,omitempty"`
-	Enabled string `json:"enabled,omitempty"`
-}
-
 //LuciRPCFirewallGetAllResponse allows deserialization of the result body to a valid struct
 // where we expect a list of named rules
 type LuciRPCFirewallGetAllResponse struct {
@@ -61,6 +53,8 @@ type LuciRPCFirewallGetAllResponse struct {
 
 // LuciFirewallEntryMap defines the map type as it's used several times, and we've been jerking around the firewall enrry type name
 type LuciFirewallEntryMap map[string]LuciRPCFirewallEntry
+
+// LuciFirewallEntryJSONMap defines the map type as it's used several times, and we've been jerking around the firewall enrry type name
 type LuciFirewallEntryJSONMap map[string]LuciRPCFirewallEntryJSON
 
 //Client remembers the client connection and auth
@@ -216,6 +210,7 @@ func (lf *LuciRPCFirewallEntry) postUnMarshall(lfej *LuciRPCFirewallEntryJSON) e
 	return nil
 }
 
+// LuciRPCFirewallEntryJSON Workaround for variadic use of string or [string]
 type LuciRPCFirewallEntryJSON struct {
 	Anonymous   bool        `json:".anonymous,omitempty"`
 	Index       int64       `json:".index,omitempty"`
@@ -248,37 +243,16 @@ type LuciRPCFirewallEntryJSON struct {
 }
 
 //NewClient returns a new client
-func NewClient(cfn string) (*Client, error) {
-	cfgFileName := cfn
-	cfgFile, err := os.Open(cfgFileName)
+func NewClient() (*Client, error) {
+	cfg, err := GetConfig(nil)
 	if err != nil {
-		//quietly try a fallback:
-		//TODO: signal this with an error type for realerr
-		realerr := err
-		cfgFileName := "/etc/myhouse.json"
-		cfgFile, err = os.Open(cfgFileName)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to open client config:%v", realerr)
-		}
+		return nil, err
 	}
-	defer cfgFile.Close()
-	jsonConfig, err := ioutil.ReadAll(cfgFile)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to read client config:%v", err)
-	}
-	var result map[string]interface{}
-	err = json.Unmarshal([]byte(jsonConfig), &result)
-
-	if err != nil {
-		return nil, fmt.Errorf("Failed to parse client config:%v", err)
-	}
-	result = result["client"].(map[string]interface{})
-
 	c := &Client{
-		BaseURL: result["rpcURL"].(string),
+		BaseURL: cfg.Client.RPCURL,
 		AuthRequest: &LuciRPCMethodRequest{
 			Method: "login",
-			Params: []string{result["user"].(string), result["password"].(string)},
+			Params: []string{cfg.Client.User, cfg.Client.Password},
 		},
 	}
 	return c, nil
@@ -365,6 +339,12 @@ func assertString(i interface{}) string {
 //GetFirewallRules gets traffic rules from the router firewall
 // NOTE in the return map, label names are used as the index but dotnames are the index in the payload
 func (c *Client) GetFirewallRules() (LuciFirewallEntryMap, error) {
+	if len(c.AuthToken) < 5 {
+		err := c.Auth()
+		if err != nil {
+			return nil, fmt.Errorf("Auth Error Fetching Files:%v", err)
+		}
+	}
 	request := LuciRPCMethodRequest{
 		Method: "get_all",
 		Params: []string{"firewall"},
@@ -401,9 +381,12 @@ func (c *Client) GetFirewallRules() (LuciFirewallEntryMap, error) {
 		}
 		v := LuciRPCFirewallEntry{}
 		v.postUnMarshall(&val)
-		if val.SrcMac != nil {
-			log.Printf("%#v\n%#v\n", val.SrcMac, v.SrcMac)
-		}
+		//if val.SrcMac != nil {
+		//		log.Printf("%#v\n%#v\n", val.SrcMac, v.SrcMac)
+		//		}
+		//if v.Name == "reject-charlie-laptop-out" {
+		//	log.Printf("Got rule %#v\n", v)
+		//}
 		rules[val.Name] = v
 	}
 
@@ -485,6 +468,7 @@ func (c *Client) DisableFirewallRule(dotname string) error {
 	return c.doCommitFirewall()
 }
 
+// TODO: Refactor requests - lotta pasted code
 func (c *Client) doCommitFirewall() error {
 	request := LuciRPCMethodRequest{
 		Method: "commit",
