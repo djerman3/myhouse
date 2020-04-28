@@ -395,10 +395,10 @@ func (c *Client) GetFirewallRules() (LuciFirewallEntryMap, error) {
 }
 
 // EnableFirewallRule uses tje donamme
-func (c *Client) EnableFirewallRule(dotname string) error {
+func (c *Client) EnableFirewallRule(dotname string, enable string) error {
 	request := LuciRPCMethodRequest{
 		Method: "set",
-		Params: []string{"firewall", dotname, "enabled", ""},
+		Params: []string{"firewall", dotname, "enabled", enable},
 	}
 	body, err := json.Marshal(request)
 	if err != nil {
@@ -428,44 +428,7 @@ func (c *Client) EnableFirewallRule(dotname string) error {
 
 	}
 
-	return c.doCommitFirewall()
-}
-
-// DisableFirewallRule uses tje donamme
-func (c *Client) DisableFirewallRule(dotname string) error {
-	request := LuciRPCMethodRequest{
-		Method: "set",
-		Params: []string{"firewall", dotname, "enabled", "0"},
-	}
-	body, err := json.Marshal(request)
-	if err != nil {
-		return fmt.Errorf("Error marshalling rule request:%v", err)
-	}
-	URL := c.BaseURL + "/uci?auth=" + c.AuthToken
-	// get answer
-	response, err := c.Post(URL, body)
-	if err != nil {
-		return fmt.Errorf("Failed to contact Router:%v", err)
-	}
-	defer response.Body.Close()
-
-	// find token
-	responseBody, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return fmt.Errorf("Failed to read router rules response:%v", err)
-	}
-	fmt.Printf("body;\n%v", string(responseBody))
-	result := LuciRPCBoolResponse{} //map[string]interface{}
-	err = json.Unmarshal(responseBody, &result)
-	if err != nil {
-		return fmt.Errorf("Failed to parse router rules response:%v", err)
-	}
-	if result.Result == false {
-		return fmt.Errorf("Set rule failed:%v", result.Error)
-
-	}
-
-	return c.doCommitFirewall()
+	return nil // remember to c.doCommitFirewall()
 }
 
 // TODO: Refactor requests - lotta pasted code
@@ -501,4 +464,40 @@ func (c *Client) doCommitFirewall() error {
 		return fmt.Errorf("Commit rule failed:%v", result.Error)
 	}
 	return nil
+}
+
+// Scanstates scans states
+func (c *Client) Scanstates() (cjlap bool, cjipad bool, sjlap bool, sjipad bool, err error) {
+	rules, err := c.GetFirewallRules()
+	if err != nil {
+		log.Printf("Failed to get firewall rules %v\n", err)
+		return false, false, false, false, fmt.Errorf("Failed to get firewall rules %v", err)
+	}
+
+	cjLapLocked := (rules["reject-charlie-laptop-out"].Enabled != "0")
+	log.Printf("Locked:%v\nBecause:%v\n", cjLapLocked, rules["reject-charlie-laptop-out"].Enabled)
+	cjPadLocked := (rules["reject-charlie-ipad-out"].Enabled != "0")
+	sjLapLocked := (rules["reject-savannah-laptop-out"].Enabled != "0")
+	sjPadLocked := (rules["reject-savannah-ipad-out"].Enabled != "0")
+	return cjLapLocked, cjPadLocked, sjLapLocked, sjPadLocked, nil
+}
+
+//SetRulesEnabled (ruleNames,enable)
+func (c *Client) SetRulesEnabled(ruleNames []string, enable string) error {
+	rules, err := c.GetFirewallRules()
+	if err != nil {
+		return err
+	}
+	for _, name := range ruleNames {
+		rn := rules[name].DotName
+		if len(rn) < 1 {
+			log.Printf("error not finding %s rule %#v", name, rules[name])
+		} else {
+			c.EnableFirewallRule(rn, enable)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return c.doCommitFirewall()
 }

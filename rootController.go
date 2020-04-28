@@ -25,6 +25,8 @@ func MyNewRouter() *mux.Router {
 	r := mux.NewRouter()
 	// handle home
 	r.HandleFunc("/", HomeHandler)
+	// handle api routes
+	r.HandleFunc("/api/{owner}/{device}/{state}", ActionHandler)
 	// handle static routes
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/",
 		http.FileServer(http.Dir("./static"))))
@@ -49,33 +51,25 @@ func flagValue(flag bool, tval string, fval string) string {
 	}
 	return fval
 }
-func scanstates() (cjlap bool, cjipad bool, sjlap bool, sjipad bool) {
-	c, err := NewClient()
-	if err != nil {
-		log.Printf("Failed to get new client %v\n", err)
-		return false, false, false, false
-	}
-	rules, err := c.GetFirewallRules()
-	if err != nil {
-		log.Printf("Failed to get firewall rules %v\n", err)
-		return false, false, false, false
-	}
-
-	cjLapLocked := (rules["reject-charlie-laptop-out"].Enabled != "0")
-	log.Printf("Locked:%v\nBecause:%v\n", cjLapLocked, rules["reject-charlie-laptop-out"].Enabled)
-	cjPadLocked := (rules["reject-charlie-ipad-out"].Enabled != "0")
-	sjLapLocked := (rules["reject-savannah-laptop-out"].Enabled != "0")
-	sjPadLocked := (rules["reject-savannah-ipad-out"].Enabled != "0")
-	return cjLapLocked, cjPadLocked, sjLapLocked, sjPadLocked
-}
 
 //HomeHandler handles the homepage and anything matching "/"
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	//push(w, "/static/style.css")
 	//push(w, "/static/navigation_bar.css")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	c, err := NewClient()
+	if err != nil {
+		log.Printf("Failed to get new client %v\n", err)
+		http.Error(w, "Error fetching states!", http.StatusInternalServerError)
+		return
+	}
 
-	cjLapLocked, cjPadLocked, sjLapLocked, sjPadLocked := scanstates()
+	cjLapLocked, cjPadLocked, sjLapLocked, sjPadLocked, err := c.Scanstates()
+	if err != nil {
+		log.Printf("Failed to get firewall status %v\n", err)
+		http.Error(w, "Error fetching states!", http.StatusInternalServerError)
+		return
+	}
 	fullData := map[string]interface{}{
 		"time":          time.Now().Format(time.UnixDate),
 		"sjLockClass":   flagValue(sjLapLocked && sjPadLocked, "btn-secondary", "btn-primary"),
@@ -86,9 +80,57 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 		"cjUnlockClass": flagValue(!cjLapLocked && !cjPadLocked, "btn-secondary", "btn-primary"),
 		"cjLapClass":    flagValue(cjLapLocked, "btn-danger", "btn-success"),
 		"cjPadClass":    flagValue(cjPadLocked, "btn-danger", "btn-success"),
+		"cjLapAction":   flagValue(cjLapLocked, "unlock", "lock"),
+		"cjPadAction":   flagValue(cjPadLocked, "unlock", "lock"),
+		"sjLapAction":   flagValue(sjLapLocked, "unlock", "lock"),
+		"sjPadAction":   flagValue(sjPadLocked, "unlock", "lock"),
 	}
 
 	render(w, r, homepageTpl, "homepage_view", fullData)
+}
+
+//ActionHandler handles the homepage and anything matching "/api/{owner}/{device}/{state}"
+// Owner = cj or sj
+// Device = ipad, laptop, or all
+// State = lock or unlock
+func ActionHandler(w http.ResponseWriter, r *http.Request) {
+	//push(w, "/static/style.css")
+	//push(w, "/static/navigation_bar.css")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	c, err := NewClient()
+	if err != nil {
+		log.Printf("Failed to get new client %v\n", err)
+		http.Error(w, "Error fetching states!", http.StatusInternalServerError)
+		return
+	}
+	pathVariables := mux.Vars(r)
+	owner := pathVariables["owner"]
+	device := pathVariables["device"]
+	state := pathVariables["state"]
+	enable := "0"
+	log.Println("STATE = " + state)
+	if state == "lock" {
+		enable = ""
+	}
+	ruleNames := []string{}
+	if device == "laptop" || device == "all" {
+		//lock/unlock laptop
+		ruleNames = append(ruleNames, "reject-"+owner+"-laptop-out")
+		ruleNames = append(ruleNames, "reject-"+owner+"-laptop-in")
+	}
+	if device == "ipad" || device == "all" {
+		//lock ipad
+		ruleNames = append(ruleNames, "reject-"+owner+"-ipad-out")
+		ruleNames = append(ruleNames, "reject-"+owner+"-ipad-in")
+	}
+	err = c.SetRulesEnabled(ruleNames, enable)
+	if err != nil {
+		log.Printf("Failed to get new client %v\n", err)
+		http.Error(w, "Error fetching states!", http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 var homepageHTML = asset{
@@ -99,7 +141,7 @@ var homepageHTML = asset{
 	  <meta name="viewport" content="width=device-width, initial-scale=1" />
 	  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
 	  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
-	  <meta http-equiv="refresh" content="46" />
+	  <meta http-equiv="refresh" content="120" />
 	  <title>Get Control!</title>
 	</head>
 	
@@ -114,22 +156,22 @@ var homepageHTML = asset{
 		  
 		  <div class="col-4">
 			<div class="row">
-			  <a  href="/api/sj/all?action=lock" role="button" class="btn {{.sjLockClass}} btn-block">
+			  <a  href="/api/savannah/all/lock" role="button" class="btn {{.sjLockClass}} btn-block">
 				Savannah Lock
 			  </a>
 			</div>
 			<div class="row">
-			  <a  href="/api/sj/laptop?action=toggle" role="button" class="btn {{.sjLapClass}} btn-block">
-				Laptop
+			  <a  href="/api/savannah/laptop/{{.sjLapAction}}" role="button" class="btn {{.sjLapClass}} btn-block">
+			  {{.sjLapAction}} Laptop
 			  </a>
 			</div>
 			<div class="row">
-			  <a  href="/api/sj/ipad?action=toggle" role="button" class="btn {{.sjPadClass}} btn-block">
-				Ipad
+			  <a  href="/api/savannah/ipad/{{.sjPadAction}}" role="button" class="btn {{.sjPadClass}} btn-block">
+			  {{.sjPadAction}} Ipad
 			  </a>
 			</div>
 			<div class="row">
-			  <a  href="/api/sj/all?action=unlock" role="button" class="btn {{.sjUnlockClass}} btn-block">
+			  <a  href="/api/savannah/all/unlock" role="button" class="btn {{.sjUnlockClass}} btn-block">
 				Savannah Unlock
 			  </a>
 			</div>
@@ -137,22 +179,22 @@ var homepageHTML = asset{
 		  <div class="col-1">&nbsp;</div>
 		  <div class="col-4">
 			<div class="row">
-			  <a  href="/api/cj/all?action=lock" role="button" class="btn {{.cjLockClass}} btn-block">
+			  <a  href="/api/charlie/all/lock" role="button" class="btn {{.cjLockClass}} btn-block">
 				Charlie Lock
 			  </a>
 			</div>
 			<div class="row">
-			  <a  href="/api/cj/laptop?action=toggle" role="button" class="btn {{.cjLapClass}} btn-block">
-				Laptop
+			  <a  href="/api/charlie/laptop/{{.cjLapAction}}" role="button" class="btn {{.cjLapClass}} btn-block">
+			  {{.cjLapAction}} Laptop
 			  </a>
 			</div>
 			<div class="row">
-			  <a  href="/api/cj/ipad?action=toggle" role="button" class="btn {{.cjPadClass}} btn-block">
-				Ipad
+			  <a  href="/api/charlie/ipad/{{.cjPadAction}}" role="button" class="btn {{.cjPadClass}} btn-block">
+			  {{.cjPadAction}} Ipad
 			  </a>
 			</div>
 			<div class="row">
-			  <a  href="/api/cj/all?action=unlock" role="button" class="btn {{.cjUnlockClass}} btn-block">
+			  <a  href="/api/charlie/all/unlock" role="button" class="btn {{.cjUnlockClass}} btn-block">
 				Charlie Unlock
 			  </a>
 			</div>
