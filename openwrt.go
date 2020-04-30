@@ -1,4 +1,4 @@
-// Package client sends commands to an openwrt router for uci managment of router stuff
+// Package myhouse sends commands to an openwrt router for uci managment of router stuff
 package myhouse
 
 import (
@@ -275,7 +275,7 @@ func (c *Client) Post(URL string, body []byte) (*http.Response, error) {
 // doPost is a sink to capture http.Client creation on posts
 // no re-auth so we can use it in Auth()
 func doPost(URL string, body []byte) (*http.Response, error) {
-	log.Printf("URL:\n%s\nBody\n%s\n", URL, string(body))
+	//log.Printf("URL:\n%s\nBody\n%s\n", URL, string(body))
 
 	// workaround: accept self-signed TLS
 	tr := &http.Transport{
@@ -417,7 +417,6 @@ func (c *Client) EnableFirewallRule(dotname string, enable string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to read router rules response:%v", err)
 	}
-	fmt.Printf("body;\n%v", string(responseBody))
 	result := LuciRPCBoolResponse{} //map[string]interface{}
 	err = json.Unmarshal(responseBody, &result)
 	if err != nil {
@@ -454,7 +453,6 @@ func (c *Client) doCommitFirewall() error {
 	if err != nil {
 		return fmt.Errorf("Failed to read router commmit response:%v", err)
 	}
-	fmt.Printf("body;\n%v", string(responseBody))
 	result := LuciRPCBoolResponse{} //map[string]interface{}
 	err = json.Unmarshal(responseBody, &result)
 	if err != nil {
@@ -475,7 +473,6 @@ func (c *Client) Scanstates() (cjlap bool, cjipad bool, sjlap bool, sjipad bool,
 	}
 
 	cjLapLocked := (rules["reject-charlie-laptop-out"].Enabled != "0")
-	log.Printf("Locked:%v\nBecause:%v\n", cjLapLocked, rules["reject-charlie-laptop-out"].Enabled)
 	cjPadLocked := (rules["reject-charlie-ipad-out"].Enabled != "0")
 	sjLapLocked := (rules["reject-savannah-laptop-out"].Enabled != "0")
 	sjPadLocked := (rules["reject-savannah-ipad-out"].Enabled != "0")

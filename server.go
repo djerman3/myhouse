@@ -3,6 +3,7 @@ package myhouse
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 )
@@ -17,7 +18,7 @@ type Server struct {
 // ListenAndServe returns  when the server errors-out but blocks while the server runs
 func (s *Server) ListenAndServe() error {
 	r := MyNewRouter()
-	fmt.Printf("Starting up on %s\n", s.ListenAddress)
+	log.Printf("Starting up on %s\n", s.ListenAddress)
 	srv := &http.Server{
 		Addr:           s.ListenAddress,
 		Handler:        r,

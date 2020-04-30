@@ -2,7 +2,6 @@ package myhouse
 
 import (
 	"bytes"
-	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -20,7 +19,7 @@ type asset struct {
 
 var homepageTpl *template.Template
 
-//NewRouter produces the router with configured handlers
+//MyNewRouter produces the router with configured handlers
 func MyNewRouter() *mux.Router {
 	r := mux.NewRouter()
 	// handle home
@@ -40,7 +39,7 @@ func MyNewRouter() *mux.Router {
 func render(w http.ResponseWriter, r *http.Request, tpl *template.Template, name string, data interface{}) {
 	buf := new(bytes.Buffer)
 	if err := tpl.ExecuteTemplate(buf, name, data); err != nil {
-		fmt.Printf("\nRender Error: %v\n", err)
+		log.Printf("\nRender Error: %v\n", err)
 		return
 	}
 	w.Write(buf.Bytes())
